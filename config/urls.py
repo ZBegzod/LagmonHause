@@ -38,11 +38,11 @@ schema_view = get_schema_view(
 
 urlpatterns = [
 
-                  # admin
-                  path('admin/', admin.site.urls),
-
                   # swagger
                   path('', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+
+                  # admin
+                  path('admin/', admin.site.urls),
 
                   # token
                   path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
