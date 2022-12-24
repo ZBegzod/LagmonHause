@@ -94,7 +94,6 @@ class ResetPasswordEmailRequest(generics.GenericAPIView):
         if UserProfile.objects.filter(email=email).exists():
             user = UserProfile.objects.get(email=email)
             uidb64 = urlsafe_base64_encode(smart_bytes(user.id))
-
             token = PasswordResetTokenGenerator().make_token(user)
 
             current_site = get_current_site(request=request).domain
