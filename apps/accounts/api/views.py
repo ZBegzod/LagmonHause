@@ -1,5 +1,6 @@
 from rest_framework.response import Response
 from apps.accounts.models import UserProfile
+from rest_framework import mixins, viewsets
 from .permissions import IsOwnerOrReadOnly
 from django.contrib.auth import login
 from django.conf import settings
@@ -186,3 +187,7 @@ class ProfileUpdateApiView(generics.RetrieveUpdateAPIView):
             return Response({'success': True, 'message': 'credentials is invalid'}, status=status.HTTP_404_NOT_FOUND)
 
 
+class CustomersApiViewSet(mixins.ListModelMixin,
+                          mixins.RetrieveModelMixin,
+                          viewsets.GenericViewSet):
+    pass

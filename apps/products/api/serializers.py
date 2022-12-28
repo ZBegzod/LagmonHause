@@ -2,7 +2,6 @@ from drf_writable_nested.serializers import WritableNestedModelSerializer
 from django.core.exceptions import ValidationError
 from apps.accounts.models import UserProfile
 from rest_framework import serializers
-from datetime import timezone
 from apps.products.models import (
     ProductImages,
     RoomImages,
@@ -13,6 +12,10 @@ from apps.products.models import (
     Order,
     Room,
 )
+import datetime
+import pytz
+
+utc = pytz.UTC
 
 
 # product images serializer
@@ -183,8 +186,20 @@ class BookingModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = [
-            'guest', 'room', 'reservation_date',
+            'id', 'guest', 'room', 'reservation_date',
             'number_of_guest', 'created', 'updated'
+        ]
+
+
+class CustomBookingModelSerializer(serializers.ModelSerializer):
+    room = RoomModelSerializer(read_only=True)
+
+    class Meta:
+        model = Booking
+        fields = [
+            'id', 'room',
+            'reservation_date',
+            'number_of_guest',
         ]
 
 
@@ -195,12 +210,8 @@ class BookingEventSerializer(serializers.ModelSerializer):
         fields = ['room', 'reservation_date', 'number_of_guest']
 
     def validate(self, attrs):
-        reservation_date = attrs['reservation_date']
         number_of_guest = attrs['number_of_guest']
         room = attrs['room']
-
-        if reservation_date < timezone.now():
-            raise ValidationError('Date cannot in the past')
 
         if number_of_guest > room.room_capacity:
             raise ValidationError('Number of guests more than from room capacity!')
@@ -210,9 +221,26 @@ class BookingEventSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         instance.room = validated_data.get('room', instance.room)
         instance.reservation_date = validated_data.get('reservation_date', instance.reservation_date)
+
+        number_of_guest = validated_data.get('number_of_guest')
+        room = validated_data.get('room')
+
+        if number_of_guest > room.room_capacity:
+            raise ValidationError('Number of guests more than from room capacity!')
+
+        if room.is_booked:
+            raise ValidationError('This room is booked please choose an other room!')
+
+        if room.booking is False:
+            raise ValidationError('This room is disable!')
+
         instance.number_of_guest = validated_data.get('number_of_guest', instance.number_of_guest)
+        room.is_booked = True
+        room.save()
 
         instance.save()
+
+        return instance
 
 
 class OrderItemModelSerializer(serializers.ModelSerializer):
@@ -225,40 +253,95 @@ class OrderItemModelSerializer(serializers.ModelSerializer):
         ]
 
 
-# order  serializer
-class OrderModelSerializer(serializers.ModelSerializer):
+# order  serializer for all user
+class OrderEventModelSerializer(serializers.ModelSerializer):
     order_items = OrderItemModelSerializer(many=True)
 
     class Meta:
         model = Order
-        # serializer(data=request.data, user=user) on view
         fields = [
             'order_items',
-            'order_total_price',
+            'order_address'
         ]
 
     def create(self, validated_data):
         order_items = validated_data.pop('order_items')
+        request = self.context.get('request')
         order = Order.objects.create(**validated_data)
 
         for order_item in order_items:
-            OrderItem.objects.create(order, **order_item)
+            OrderItem.objects.create(order=order, **order_item)
 
         return order
 
-    def update(self, instance, validated_data):
-        order_items_data = validated_data.pop('order_items')
 
-        instance.status = validated_data.get('status', instance.status)
-        instance.save()
+# order item list and retrieve for all user
+class CustomOrderItemModelSerializer(serializers.ModelSerializer):
+    product = serializers.StringRelatedField(read_only=True)
 
-        for order_item in order_items_data:
-            if not ('id' in order_item):
-                OrderItem.objects.create(order=instance, **order_item)
-            else:
-                item = OrderItem.objects.get(id=order_item['id'])
-                item.product = order_item.get('product', item.product)
-                item.quantity = order_item.get('quantity', item.quantity)
-                item.save()
+    class Meta:
+        model = OrderItem
+        fields = [
+            'product', 'item_total_price',
+            'quantity', 'ignore_ingredient'
+        ]
 
-        return instance
+
+# order list and retrieve for all user
+class CustomOrderModelSerializer(serializers.ModelSerializer):
+    order_items = OrderItemModelSerializer(read_only=True, many=True)
+
+    # user = CustomModelSerializer(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            'order_address',
+            'is_cancelled',
+            'created', 'status',
+            'prepared_time',
+            'cancell_datetime',
+            'order_items',
+            'order_total_price'
+        ]
+
+
+class AdminOrderModelSerializer(serializers.ModelSerializer):
+    order_items = OrderItemModelSerializer(read_only=True, many=True)
+    user = CustomModelSerializer(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            'user',
+            'order_address',
+            'is_delivered',
+            'is_cancelled',
+            'created', 'status',
+            'prepared_time',
+            'cancell_datetime',
+            'delivered_datetime',
+            'order_items',
+            'order_total_price'
+        ]
+
+
+# cancell order for user own order serializer
+class CancellOrderModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['is_cancelled']
+
+
+# order deliver serializer for admin user
+class DeliverOrderModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['is_delivered']
+
+
+# order prepared_time serializer for admin user
+class PrepareTimeOrderModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['prepared_time']

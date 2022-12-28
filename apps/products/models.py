@@ -1,6 +1,8 @@
-import datetime
 from django.db import models
+from datetime import datetime
 from django.conf import settings
+from django.utils import timezone
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 
 
@@ -84,18 +86,18 @@ class Room(models.Model):
     price = models.FloatField(default=100.000)
 
     BOOKING = [
-        (True, 'enable'),
-        (False, 'disable'),
+        (True, 'Yoqish'),
+        (False, "O'chirish"),
     ]
 
     booking = models.BooleanField(choices=BOOKING, default=True)
 
     IS_BOOKED = [
-        (True, 'Booked'),
-        (False, 'Not booked'),
+        (True, 'Bron qilish'),
+        (False, 'Brondan chiqarish'),
     ]
 
-    is_booked = models.BooleanField(max_length=90, choices=IS_BOOKED, default=False)
+    is_booked = models.BooleanField(choices=IS_BOOKED, default=False)
 
     def __str__(self):
         return self.name
@@ -118,10 +120,19 @@ class RoomImages(models.Model):
 class Booking(models.Model):
     guest = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, related_name='room_booking')
-    reservation_date = models.DateTimeField(default=datetime.datetime.now())
+    reservation_date = models.DateTimeField(default=datetime.now())
     number_of_guest = models.IntegerField(default=1, validators=[MinValueValidator(1)])
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+    def validate_date(reservation_date):
+        if reservation_date < timezone.now():
+            raise ValidationError("Date cannot be in the past")
+
+    reservation_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        validators=[validate_date])
 
     class Meta:
         unique_together = ['reservation_date', 'guest']
@@ -134,8 +145,12 @@ class Booking(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
     order_address = models.CharField(max_length=100)
+    prepared_time = models.TimeField(default=None, null=True, blank=True)
+    is_cancelled = models.BooleanField(default=False, null=True, blank=True)
+    is_delivered = models.BooleanField(default=False, null=True, blank=True)
+    cancell_datetime = models.DateTimeField(default=None, null=True, blank=True)
+    delivered_datetime = models.DateTimeField(default=None, null=True, blank=True)
 
     STATUS = [
         ('new', 'New'),
@@ -159,8 +174,8 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, related_name='product_items')
-    order_time = models.TimeField(default=datetime.datetime.now())
     quantity = models.IntegerField(default=1)
+    # order_number = models.CharField(max_length=70)
     ignore_ingredient = models.TextField(default='')
 
     @property

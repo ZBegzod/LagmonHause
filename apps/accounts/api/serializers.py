@@ -139,5 +139,6 @@ class UpdateProfileModelSerializer(serializers.ModelSerializer):
             'email',
             'phone_number',
             'address',
+            'is_manager',
             'bio'
         ]

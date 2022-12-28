@@ -23,6 +23,7 @@ class UserProfile(AbstractUser):
     bio = models.TextField(max_length=400,
                            null=True,
                            blank=True)
+    is_manager = models.BooleanField(default=False)
 
     objects = CustomUserManager()
 
