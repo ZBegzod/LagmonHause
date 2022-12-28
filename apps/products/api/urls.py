@@ -46,7 +46,7 @@ router.register(r'room-event', RoomEventApiViewSet, basename='room-event')
 
 # reservations
 router.register(r'reservations-admin', BookingApiViewSet, basename='reservations')
-router.register(r'reservations-customer', BookingApiViewSet, basename='reservations')
+router.register(r'reservations-customer', CustomBookingApiViewSet, basename='reservations')
 router.register(r'reservation-create', BookingCreateApiViewSet, basename='reservation-create')
 router.register(r'reservation-event', BookingEventApiViewSet, basename='reservation-event')
 

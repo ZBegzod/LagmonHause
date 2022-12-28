@@ -3,19 +3,11 @@ from django.core.exceptions import ValidationError
 from apps.accounts.models import UserProfile
 from rest_framework import serializers
 from apps.products.models import (
-    ProductImages,
-    RoomImages,
-    OrderItem,
-    Category,
-    Booking,
-    Product,
-    Order,
-    Room,
+    ProductImages, Product,
+    RoomImages, Room,
+    OrderItem, Order,
+    Category, Booking,
 )
-import datetime
-import pytz
-
-utc = pytz.UTC
 
 
 # product images serializer
